@@ -148,6 +148,51 @@ class Report:
         return rows
 
 
+def pair_fills(fill_events: list[dict]) -> tuple[list[RoundTrip], int]:
+    """FIFO-склейка fill'ов в круглые сделки: вход и выход с раздельными комиссиями."""
+    lots: dict[str, list[Lot]] = defaultdict(list)
+    trips: list[RoundTrip] = []
+    open_lots = 0
+    for event in fill_events:
+        symbol = event["symbol"]
+        quantity, price = D(event["quantity"]), D(event["price"])
+        fee = D(event["fee"])
+        if event["side"] == "BUY":
+            lots[symbol].append(Lot(quantity, price, fee, event["ts_ns"]))
+            continue
+        remaining = quantity
+        while remaining > 0 and lots[symbol]:
+            lot = lots[symbol][0]
+            take = min(remaining, lot.quantity)
+            share = take / lot.quantity
+            entry_fee = lot.fee * share
+            exit_fee = fee * (take / quantity) if quantity else D(0)
+            trips.append(
+                RoundTrip(
+                    symbol=symbol,
+                    strategy=event.get("strategy", "unknown"),
+                    quantity=take,
+                    entry_price=lot.price,
+                    exit_price=price,
+                    entry_fee=entry_fee,
+                    exit_fee=exit_fee,
+                    entry_ns=lot.ts_ns,
+                    exit_ns=event["ts_ns"],
+                    maker_exit=bool(event.get("maker")),
+                )
+            )
+            lot.quantity -= take
+            lot.fee -= entry_fee
+            remaining -= take
+            if lot.quantity <= 0:
+                lots[symbol].pop(0)
+        if remaining > 0:
+            # Sell without recorded inventory: the session was restored mid-position.
+            open_lots += 1
+    open_lots += sum(len(symbol_lots) for symbol_lots in lots.values())
+    return trips, open_lots
+
+
 def load_report(path: Path) -> Report:
     conn = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True)
     try:
@@ -180,44 +225,9 @@ def load_report(path: Path) -> Report:
         ]
     finally:
         conn.close()
-    lots: dict[str, list[Lot]] = defaultdict(list)
-    for event in rows:
-        symbol = event["symbol"]
-        quantity, price = D(event["quantity"]), D(event["price"])
-        fee = D(event["fee"])
-        if event["side"] == "BUY":
-            lots[symbol].append(Lot(quantity, price, fee, event["ts_ns"]))
-            continue
-        remaining = quantity
-        while remaining > 0 and lots[symbol]:
-            lot = lots[symbol][0]
-            take = min(remaining, lot.quantity)
-            share = take / lot.quantity
-            entry_fee = lot.fee * share
-            exit_fee = fee * (take / quantity) if quantity else D(0)
-            report.round_trips.append(
-                RoundTrip(
-                    symbol=symbol,
-                    strategy=event.get("strategy", "unknown"),
-                    quantity=take,
-                    entry_price=lot.price,
-                    exit_price=price,
-                    entry_fee=entry_fee,
-                    exit_fee=exit_fee,
-                    entry_ns=lot.ts_ns,
-                    exit_ns=event["ts_ns"],
-                    maker_exit=bool(event.get("maker")),
-                )
-            )
-            lot.quantity -= take
-            lot.fee -= entry_fee
-            remaining -= take
-            if lot.quantity <= 0:
-                lots[symbol].pop(0)
-        if remaining > 0:
-            # Sell without recorded inventory: the session was restored mid-position.
-            report.open_lots += 1
-    report.open_lots += sum(1 for symbol_lots in lots.values() for _ in symbol_lots)
+    trips, open_lots = pair_fills(rows)
+    report.round_trips = trips
+    report.open_lots = open_lots
     return report
 
 
