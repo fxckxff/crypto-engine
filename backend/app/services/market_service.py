@@ -173,6 +173,15 @@ class MarketService:
         self._tasks.append(asyncio.create_task(self._refresh_volumes_loop(), name="volume-loop"))
         if self.config.scanner.universe_enabled:
             self._tasks.append(asyncio.create_task(self._universe_loop(), name="universe-loop"))
+
+        # Invalidate all orderbooks on WS disconnect so synchronizer requests
+        # a fresh snapshot immediately on reconnect.
+        def _on_ws_disconnect(exc: BaseException) -> None:
+            for state in self.states.values():
+                state.synchronizer.book.invalidate(f"WS disconnect: {type(exc).__name__}")
+
+        self.adapter.set_on_disconnect(_on_ws_disconnect)
+
         self._running = True
         logger.info(
             "market service started",

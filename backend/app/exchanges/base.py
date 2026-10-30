@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 
@@ -143,6 +143,14 @@ class ExchangeAdapter(ABC):
         эндпоинта нет, возвращает пустой словарь: сканер отметит объём как неизвестный.
         """
         return {}
+
+    def set_on_disconnect(self, cb: Callable[[BaseException], None] | None) -> None:
+        """Optional callback for WebSocket disconnect notifications.
+
+        BinanceSpotAdapter uses this to invalidate orderbooks immediately on
+        disconnect. Default implementation does nothing.
+        """
+        del cb  # Unused by default.
 
     # --- приватный доступ ---------------------------------------------------
     @abstractmethod

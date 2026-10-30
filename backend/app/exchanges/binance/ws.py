@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 
 from app.core.time import Clock
@@ -51,6 +51,7 @@ class BinanceWsClient:
         depth_speed_ms: int = 100,
         policy: ReconnectPolicy | None = None,
         clock: Clock | None = None,
+        on_disconnect: Callable[[BaseException], None] | None = None,
     ) -> None:
         if not symbols:
             raise ValueError("at least one symbol is required")
@@ -60,12 +61,23 @@ class BinanceWsClient:
         self.clock = clock or Clock()
         self.streams = stream_names(self.symbols, depth_speed_ms)
         self.stats = WsStats()
+        self._on_disconnect: Callable[[BaseException], None] | None = on_disconnect
+
+        def _on_disconnect(name: str, exc: BaseException) -> None:
+            cb = self._on_disconnect
+            if cb is not None:
+                cb(exc)
+
         self._stream = ReconnectingStream(
             name="binance_public",
             url_factory=self._url,
             policy=policy,
             clock=self.clock,
+            on_disconnect=_on_disconnect,
         )
+
+    def set_on_disconnect(self, cb: Callable[[BaseException], None] | None) -> None:
+        self._on_disconnect = cb
 
     def _url(self) -> str:
         return f"{self.base_url}/stream?streams={'/'.join(self.streams)}"

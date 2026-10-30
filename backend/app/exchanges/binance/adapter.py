@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from decimal import Decimal
 from typing import Any
 
@@ -61,6 +61,7 @@ class BinanceSpotAdapter(ExchangeAdapter):
         policy: ReconnectPolicy | None = None,
         default_maker_bps: Decimal = D("10"),
         default_taker_bps: Decimal = D("10"),
+        on_disconnect: Callable[[BaseException], None] | None = None,
     ) -> None:
         self.symbols = [s.upper() for s in symbols]
         self.depth = depth
@@ -73,7 +74,13 @@ class BinanceSpotAdapter(ExchangeAdapter):
             recv_window_ms=recv_window_ms,
             timeout_s=timeout_s,
         )
-        self._ws = BinanceWsClient(ws_base_url, self.symbols, policy=policy, clock=self.clock)
+        self._ws = BinanceWsClient(
+            ws_base_url,
+            self.symbols,
+            policy=policy,
+            clock=self.clock,
+            on_disconnect=on_disconnect,
+        )
         self._depth_queues: dict[str, BoundedEventQueue] = {s: BoundedEventQueue(20_000) for s in self.symbols}
         self._trade_queues: dict[str, BoundedEventQueue] = {s: BoundedEventQueue(50_000) for s in self.symbols}
         self._ticker_queues: dict[str, BoundedEventQueue] = {s: BoundedEventQueue(2_000) for s in self.symbols}
@@ -118,6 +125,15 @@ class BinanceSpotAdapter(ExchangeAdapter):
         return self.parse_errors > 0 or any(
             queue.dropped > 0 for queue in (*self._depth_queues.values(), *self._trade_queues.values())
         )
+
+    def set_on_disconnect(self, cb: Callable[[BaseException], None] | None) -> None:
+        """Set callback for public WebSocket disconnects.
+
+        Called after adapter creation so the market service can invalidate
+        synchronizers immediately on disconnect instead of waiting for a
+        sequence gap to be detected.
+        """
+        self._ws.set_on_disconnect(cb)
 
     # ------------------------------------------------------------------ публичный поток
 
