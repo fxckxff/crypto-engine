@@ -399,25 +399,32 @@ class MarketService:
         fresh = [engine.fresh(m, now) for m in engine.markets.values()]
         ready = any(fresh) if engine.settings.isolate_stale_symbols else bool(fresh) and all(fresh)
         allowed = {"READY", "STALE"} if engine.settings.isolate_stale_symbols else {"READY"}
-        healthy = (
-            status["running"]
-            and status["connection"]["connected"]
-            and not status["data_loss"]
-            and bool(status["books"])
+        books_ok = (
+            bool(status["books"])
             and (
                 any(b["state"] in allowed for b in status["books"].values())
                 if engine.settings.isolate_stale_symbols
                 else all(b["state"] in allowed for b in status["books"].values())
             )
         )
-        if not healthy:
-            self._paper_recovery_since_ns = None
+        # Data path is healthy if: market service running, no data loss, books OK.
+        # Connection "connected" is intentionally excluded: it flips to False during
+        # the reconnect backoff, which would otherwise reset the 10 s recovery timer.
+        data_healthy = status["running"] and not status["data_loss"] and books_ok
+
+        if not data_healthy:
+            # New data loss while not already paused -> pause and reset timer.
             if engine.running:
                 await paper.apply("pause_data", now, "Ожидание свежих синхронизированных данных")
+            self._paper_recovery_since_ns = None
             return
+
+        # Data is healthy. If engine is already running, nothing to do.
         if engine.running:
             self._paper_recovery_since_ns = None
             return
+
+        # Engine is data_paused: start/continue the 10 s stability timer.
         mono = self.clock.monotonic_ns()
         if self._paper_recovery_since_ns is None:
             self._paper_recovery_since_ns = mono
