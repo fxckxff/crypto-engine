@@ -1,0 +1,121 @@
+app:
+  name: Crypto Liquidity Engine
+  mode: paper
+  timezone: UTC
+  log_level: INFO
+  log_json: true
+exchange:
+  provider: binance
+  market: spot
+  testnet: false
+  symbols:
+  # Seed symbols — scanner расширит список (universe_enabled: true)
+  - ALPINEUSDT
+  - RADUSDT
+  - SOPHUSDT
+  - GUSDT
+  - GTCUSDT
+  rest_base_url: https://api.binance.com
+  ws_base_url: wss://stream.binance.com:9443
+  rest_timeout_s: 10
+  recv_window_ms: 5000
+  max_requests_per_minute: 600
+market_data:
+  orderbook_depth: 50
+  stale_after_ms: 2000
+  max_data_age_ms: 500
+  record_raw_events: true
+  record_feature_snapshots: true
+  reconnect_initial_ms: 500
+  reconnect_max_ms: 30000
+  feature_window_ms: 60000
+  feature_interval_ms: 250
+scanner:
+  enabled: true
+  max_symbols: 100
+  universe_enabled: true
+  discovery_slots: 15
+  discovery_low_liquidity: true
+  min_24h_volume_usdt: 100000
+  min_spread_pct: 0.3
+  max_spread_pct: 5.0
+  min_orderbook_depth_usdt: 500
+storage:
+  database: none
+  historical_format: parquet
+  raw_dir: datasets/ab_raw
+  derived_dir: datasets/ab_derived
+  save_raw_orderbook: true
+  rotation_mb: 256
+  retention_days: 30
+  queue_max_events: 100000
+api:
+  host: 127.0.0.1
+  port: 8003
+  ui_update_hz: 5
+  cors_origins:
+  - http://localhost:5173
+risk:
+  enabled: true
+  max_position_usdt: 10
+  max_total_exposure_usdt: 50
+  max_open_positions: 2
+  max_daily_loss_usdt: 3
+  max_slippage_pct: 0.2
+  allow_market_orders: false
+  leverage_enabled: false
+ui:
+  language: ru
+  theme: dark
+postgres:
+  host: localhost
+  port: 5432
+  database: crypto_engine
+  user: postgres
+  password: postgres
+  min_pool: 2
+  max_pool: 10
+execution:
+  enabled: false
+  default_type: direct
+  twap_slices: 4
+  twap_interval_s: 30.0
+  iceberg_display_ratio: 0.25
+  iceberg_refresh_ms: 500.0
+  min_qty_for_twap: 10.0
+  max_slippage_pct: 0.2
+paper:
+  initial_cash: '100'
+  database_path: datasets/ab_paper/account.sqlite3
+  continuous: true
+  session_end_ns: null
+  isolate_stale_symbols: true
+  strategies:
+    spread_capture:
+      enabled: true
+      order_notional: '10'
+      min_edge_bps: '5'
+      min_spread_bps: '25'
+      min_obi: 0.25
+      min_wall_score: 60.0
+      min_trades: 10
+      adverse_selection_bps: '5'
+    liquidity_wall:
+      enabled: true
+      order_notional: '10'
+      min_edge_bps: '5'
+      min_spread_bps: '25'
+      min_obi: 0.25
+      min_wall_score: 60.0
+      min_trades: 10
+      adverse_selection_bps: '5'
+    microstructure:
+      enabled: true
+      order_notional: '10'
+      min_edge_bps: '5'
+      min_spread_bps: '25'
+      min_obi: 0.25
+      min_wall_score: 60.0
+      min_trades: 10
+      adverse_selection_bps: '5'
+  max_daily_loss_pct: '3'
