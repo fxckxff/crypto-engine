@@ -1,0 +1,56 @@
+# Crypto Liquidity Engine — .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+*.pth
+*.egg
+*.whl
+
+# Node / Frontend
+frontend/dist/
+frontend/node_modules/
+frontend/*.log
+frontend/.vite/
+
+# Данные и логи
+datasets/
+*.log
+*.parquet
+*.tmp
+*.temp
+
+# Конфигурация (локальные переопределения)
+.env
+.env.local
+configs/local.yaml
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker
+docker-compose.override.yml
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini

@@ -1,0 +1,23 @@
+services:
+  engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crypto-liquidity-engine
+    ports:
+      - "8000:8000"
+    environment:
+      - CLE_CONFIG=configs/default.yaml
+      - PYTHONPATH=backend
+      - BINANCE_API_KEY=${BINANCE_API_KEY:-}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET:-}
+    volumes:
+      - ./datasets:/app/datasets
+      - ./configs:/app/configs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

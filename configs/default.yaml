@@ -1,0 +1,91 @@
+# Crypto Liquidity Engine — конфигурация по умолчанию (research).
+# Все значения проверяются схемой app/config/schema.py.
+# Ключи API сюда не пишутся: только переменные окружения BINANCE_API_KEY/SECRET.
+
+app:
+  name: Crypto Liquidity Engine
+  mode: research          # research | backtest | paper  (live — PHASE 7, выключен)
+  timezone: UTC
+  log_level: INFO
+  log_json: true
+
+exchange:
+  provider: binance
+  market: spot
+  testnet: false
+  symbols:
+    - BTCUSDT
+    - ETHUSDT
+  rest_base_url: https://api.binance.com
+  ws_base_url: wss://stream.binance.com:9443
+  rest_timeout_s: 10
+  recv_window_ms: 5000
+  max_requests_per_minute: 600
+
+market_data:
+  orderbook_depth: 200
+  stale_after_ms: 2000
+  max_data_age_ms: 500
+  record_raw_events: true
+  record_feature_snapshots: true
+  reconnect_initial_ms: 500
+  reconnect_max_ms: 30000
+  feature_window_ms: 60000
+
+scanner:
+  enabled: true
+  max_symbols: 30
+  min_24h_volume_usdt: 100000
+  min_spread_pct: 0.30
+  max_spread_pct: 5.00
+  min_orderbook_depth_usdt: 500
+
+storage:
+  database: none          # postgresql подключается в PHASE 5+
+  historical_format: parquet
+  raw_dir: datasets/raw
+  derived_dir: datasets/derived
+  save_raw_orderbook: true
+  rotation_mb: 256
+  retention_days: 30
+  queue_max_events: 100000
+
+api:
+  host: 127.0.0.1
+  port: 8000
+  ui_update_hz: 5
+  cors_origins:
+    - http://localhost:5173
+
+risk:
+  enabled: false          # PHASE 6
+  max_position_usdt: 50
+  max_total_exposure_usdt: 100
+  max_open_positions: 2
+  max_daily_loss_usdt: 10
+  max_slippage_pct: 0.20
+  allow_market_orders: false
+  leverage_enabled: false
+
+ui:
+  language: ru
+  theme: dark
+
+postgres:
+  host: localhost
+  port: 5432
+  database: crypto_engine
+  user: postgres
+  password: postgres
+  min_pool: 2
+  max_pool: 10
+
+execution:
+  enabled: false
+  default_type: direct
+  twap_slices: 4
+  twap_interval_s: 30.0
+  iceberg_display_ratio: 0.25
+  iceberg_refresh_ms: 500.0
+  min_qty_for_twap: 10.0
+  max_slippage_pct: 0.20
