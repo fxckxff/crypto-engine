@@ -29,6 +29,7 @@ class PaperSettings(BaseModel):
     order_ttl_ms: int = Field(default=10000, ge=100, le=600000)
     cooldown_ms: int = Field(default=5000, ge=100)
     max_orders_per_minute: int = Field(default=30, ge=1, le=1000)
+    order_history_limit: int = Field(default=500, ge=50, le=100_000)
     stop_loss_bps: Decimal = Field(default=Decimal("30"), gt=0)
     take_profit_bps: Decimal = Field(default=Decimal("40"), gt=0)
     max_hold_seconds: int = Field(default=180, ge=1)
