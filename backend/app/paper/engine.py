@@ -143,7 +143,7 @@ class PaperEngine:
         self.emit("DATA_RESUMED", now)
 
     def set_continuous(self, enabled: bool, now: int) -> None:
-        update = {"continuous": enabled}
+        update: dict[str, object] = {"continuous": enabled}
         if enabled:
             update["session_end_ns"] = None
         self.settings = self.settings.model_copy(update=update)
