@@ -60,15 +60,24 @@ async def test_recovery_requires_continuous_health_and_fresh_positions():
     await tick(0)
     await tick(9000)
     assert not e.running
+    # Connection flap without data loss should NOT reset the timer.
     status["connection"]["connected"] = False
     await tick(1000)
     status["connection"]["connected"] = True
     await tick(0)
-    await tick(9000)
-    assert not e.running
-    await tick(1000)
+    # Timer has been running continuously: 9s + 1s + 0s = 10s, should resume now.
     assert e.running and not e.data_paused
     assert any(x["kind"] == "DATA_RESUMED" for x in e.events)
+
+    # Now test that actual data loss DOES reset the timer.
+    e.pause_data(T + 20_000 * MS, "data loss")
+    status["data_loss"] = True
+    await tick(5000)
+    status["data_loss"] = False
+    # First tick starts the timer, second tick after 10s expires it.
+    await tick(1)
+    await tick(10000)
+    assert e.running and not e.data_paused
 
 
 async def test_start_clock_sampled_after_lock(tmp_path, monkeypatch):
