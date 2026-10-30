@@ -293,7 +293,10 @@ class MarketService:
 
         while True:
             try:
-                self.universe_rows = await fetch_universe(self.adapter.rest)
+                rest = getattr(self.adapter, "rest", None)
+                if rest is None:
+                    raise RuntimeError("адаптер не предоставляет REST-клиент для сканера")
+                self.universe_rows = await fetch_universe(rest)
                 self.universe_updated_ns = self.clock.wall_ns()
                 self.universe_error = None
             except asyncio.CancelledError:

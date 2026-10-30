@@ -79,6 +79,8 @@ class PaperOrder:
     queue_ahead: Decimal = Decimal(0)
     cancel_ns: int | None = None
     acknowledged: bool = False
+    # Cached JSON view of a terminal order; excluded from dataclass equality and repr.
+    _terminal_snapshot: dict | None = field(default=None, init=False, repr=False, compare=False)
 
     @property
     def remaining(self) -> Decimal:
@@ -86,7 +88,7 @@ class PaperOrder:
 
     def to_dict(self) -> dict:
         # Terminal orders are immutable; avoid recursive dataclass deepcopy on every tick.
-        if self.status not in ACTIVE and hasattr(self, "_terminal_snapshot"):
+        if self.status not in ACTIVE and self._terminal_snapshot is not None:
             return dict(self._terminal_snapshot)
         data = json_value({k: v for k, v in vars(self).items() if not k.startswith("_")})
         data["remaining"] = str(self.remaining)
