@@ -349,3 +349,14 @@ def test_session_deadline_closes_inventory():
     assert not value.running
     assert value.flattening
     assert any(o.side == "SELL" for o in value.active())
+
+
+def test_order_history_is_bounded_and_keeps_active_orders():
+    value = engine(order_history_limit=50)
+    active = buy(value)
+    for index in range(200):
+        value.submit("BTCUSDT", "BUY", D("-1"), D(100), T, f"bad-{index}")
+    assert len(value.orders) <= 51
+    assert active.id in value.orders
+    assert value.reserved_cash == D("10.01")
+    assert len(value.state()["orders"]) <= 51

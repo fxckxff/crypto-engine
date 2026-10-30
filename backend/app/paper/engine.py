@@ -213,9 +213,11 @@ class PaperEngine:
         if error:
             order.status = "REJECTED"
             order.reason = error
+            self._prune_orders()
             self.emit("REJECTED", now, order=order.to_dict())
             return order
         self.order_times.append(now)
+        self._prune_orders()
         self.emit("SUBMITTING", now, order=order.to_dict())
         return order
 
@@ -287,6 +289,23 @@ class PaperEngine:
         if quantity * price * (1 + fee) > self.cash - self.reserved_cash:
             return "Недостаточно свободного USDT с учётом комиссии"
         return None
+
+    def _prune_orders(self) -> None:
+        """Bound order history: terminal orders are pruned, active ones are kept.
+
+        Called on every submission (both accepted and rejected). Everything in
+        ``orders`` is serialized into the durable account state, so an unbounded
+        history makes every state commit grow without limit.
+        """
+        limit = self.settings.order_history_limit
+        if len(self.orders) <= limit:
+            return
+        terminal = [key for key, order in self.orders.items() if order.status not in ACTIVE]
+        excess = len(terminal) - limit
+        if excess <= 0:
+            return
+        for key in terminal[:excess]:
+            del self.orders[key]
 
     def _activate(self, order: PaperOrder, now: int) -> bool:
         if order.cancel_ns is not None and now >= order.cancel_ns:
