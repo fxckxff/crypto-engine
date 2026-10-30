@@ -539,7 +539,9 @@ class PaperEngine:
         elif market.obi < -0.5 and market.ofi < 0 and market.sell_volume > market.buy_volume:
             reason = "WEAKNESS_EXIT"
         elif change >= self.settings.take_profit_bps:
-            reason = "TAKE_PROFIT"
+            # Тейк-профит теперь не вызывает немедленный IOC-выход,
+            # позволяя POST_ONLY ордеру исполниться как maker.
+            pass
         if reason != position.exit_reason:
             position.exit_reason = reason
             self.emit("EXIT_REASON", now, symbol=position.symbol, reason=reason)

@@ -26,6 +26,8 @@ def evaluate(name: str, config: StrategySettings, paper: PaperSettings, market: 
     if name == "spread_capture":
         if gross < config.min_spread_bps:
             return no("Спред меньше порога")
+        if market.obi < config.min_obi:
+            return no("Недостаточный OBI (дисбаланс стакана)")
     elif name == "liquidity_wall":
         if (
             not market.wall_persistent

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 import time
 from decimal import Decimal
 from pathlib import Path
 
 from app.exchanges.binance.rest import BinanceRestClient
+
+logger = logging.getLogger(__name__)
 
 
 async def fetch_universe(rest: BinanceRestClient) -> list[dict]:
@@ -82,5 +85,8 @@ async def discover_config(config):
         )
         exchange = config.exchange.model_copy(update={"symbols": [*existing, *selected]})
         return config.model_copy(update={"exchange": exchange})
+    except Exception as exc:
+        logger.warning("universe discovery failed (%s), retaining configured instruments", exc)
+        return config
     finally:
         await rest.close()

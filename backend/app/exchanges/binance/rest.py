@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any
@@ -143,10 +144,19 @@ class BinanceRestClient:
 
     async def sync_time(self) -> int:
         """Синхронизация часов с биржей: без неё подпись ломается (ошибка -1021)."""
-        payload = await self._request("GET", "/api/v3/time")
-        server_time = int(payload["serverTime"])
-        self._time_offset_ms = server_time - int(time.time() * 1000)
-        return self._time_offset_ms
+        for attempt in range(3):
+            try:
+                payload = await self._request("GET", "/api/v3/time")
+                server_time = int(payload["serverTime"])
+                self._time_offset_ms = server_time - int(time.time() * 1000)
+                return self._time_offset_ms
+            except Exception as exc:
+                if attempt == 2:
+                    logger.warning("time sync failed after 3 attempts, using local time offset 0: %s", exc)
+                    self._time_offset_ms = 0
+                    return 0
+                await asyncio.sleep(1.0 * (attempt + 1))
+        return 0
 
     @property
     def time_offset_ms(self) -> int:
